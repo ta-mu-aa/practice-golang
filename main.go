@@ -1,24 +1,35 @@
 package main
 
 import (
-	"encoding/json"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 )
 
-type Person struct{
-	Name string          `json:"name,omitempty"`
-	Age int							 `json:"age,omitempty"`
-	Nicknames []string   `json:"nicknames,omitempty"`
+var DB = map[string]string{
+	"User1key": "User1Secret",
+	"User2key": "User2Secret",
+}
+
+func Server(apiKey, sign string, data []byte) {
+	apiSecret := DB[apiKey]
+	h := hmac.New(sha256.New, []byte(apiSecret))
+	h.Write(data)
+	expectedHMAC := hex.EncodeToString(h.Sum(nil))
+	fmt.Println(sign == expectedHMAC)
 }
 
 func main() {
-	b := []byte(`{"name":"mike","age":20,"nicknames":["a","b","c"]}`)
-	var p Person
-	if err := json.Unmarshal(b, &p); err != nil{
-		fmt.Println(err)
-	}
-	fmt.Println(p.Name, p.Age, p.Nicknames)
+	const apiKey = "User1key"
+	const apiSecret = "User1Secret"
 
-	v, _ := json.Marshal(p)
-	fmt.Println(string(v))
+	data := []byte("data")
+	h := hmac.New(sha256.New, []byte(apiSecret))
+	h.Write(data)
+	sign := hex.EncodeToString(h.Sum(nil))
+
+	fmt.Println(sign)
+
+	Server(apiKey, sign, data)
 }
