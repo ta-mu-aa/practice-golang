@@ -1,35 +1,33 @@
 package main
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
+	"context"
 	"fmt"
+	"time"
+
+	"golang.org/x/sync/semaphore"
 )
 
-var DB = map[string]string{
-	"User1key": "User1Secret",
-	"User2key": "User2Secret",
-}
+var s *semaphore.Weighted = semaphore.NewWeighted(1)
 
-func Server(apiKey, sign string, data []byte) {
-	apiSecret := DB[apiKey]
-	h := hmac.New(sha256.New, []byte(apiSecret))
-	h.Write(data)
-	expectedHMAC := hex.EncodeToString(h.Sum(nil))
-	fmt.Println(sign == expectedHMAC)
+func longProcess(ctx context.Context) {
+	isAcquire := s.TryAcquire(1)
+	if !isAcquire {
+		fmt.Println("Could not get lock")
+		return
+	}
+	defer s.Release(1)
+	fmt.Println("Wait...")
+	time.Sleep(1 * time.Second)
+	fmt.Println("Done")
 }
 
 func main() {
-	const apiKey = "User1key"
-	const apiSecret = "User1Secret"
-
-	data := []byte("data")
-	h := hmac.New(sha256.New, []byte(apiSecret))
-	h.Write(data)
-	sign := hex.EncodeToString(h.Sum(nil))
-
-	fmt.Println(sign)
-
-	Server(apiKey, sign, data)
+	ctx := context.TODO()
+	go longProcess(ctx)
+	go longProcess(ctx)
+	go longProcess(ctx)
+	time.Sleep(2 * time.Second)
+	go longProcess(ctx)
+	time.Sleep(2 * time.Second)
 }
